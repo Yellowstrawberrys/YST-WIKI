@@ -1,0 +1,39 @@
+body{
+    font-family: sans-serif;
+}
+
+.top{
+    top: 0;
+}
+
+.right{
+    right: 0;
+    margin-right: 0;
+    position: absolute;
+}
+
+.noDeco{
+    text-decoration: none;
+}
+
+.left{
+    left: 0;
+    margin-left:0;
+    position: absolute;
+}
+
+.line{
+    width: 100px;
+    border-bottom: 1px solid black;
+    position: absolute;
+}
+
+wikibody{
+    /*display: flex;*/
+    /*align-items: center;*/
+    /*justify-content: center;*/
+    border: 1px black solid;
+    height: auto;
+    position: absolute;
+    left: 100px;
+}
