@@ -1,8 +1,8 @@
 package cf.thdisstudio.ystwiki.Web;
 
 import cf.thdisstudio.ystwiki.Main.Main;
+import cf.thdisstudio.ystwiki.Web.Handlers.*;
 import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.File;
@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
+import java.util.List;
 
 public class Core {
 
@@ -34,6 +35,15 @@ public class Core {
             }
         });
         server.createContext("/", new WikiPageHandler());
+        server.createContext("/upload/file", new FormDataHandler() {
+            @Override
+            public void handle(HttpExchange httpExchange, List<MultiPart> parts) throws IOException {
+
+            }
+        });
+        server.createContext("/search", new SearchHandler());
+        server.createContext("/create", new CreateHandler());
+        server.createContext("/edit", new EditHandler());
         server.start();
         Main.logger.info("Http Webserver has been successfully started");
     }

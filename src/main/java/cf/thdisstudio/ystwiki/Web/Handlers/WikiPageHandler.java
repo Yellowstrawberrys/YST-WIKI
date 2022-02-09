@@ -1,6 +1,7 @@
-package cf.thdisstudio.ystwiki.Web;
+package cf.thdisstudio.ystwiki.Web.Handlers;
 
 import cf.thdisstudio.ystwiki.Main.Main;
+import cf.thdisstudio.ystwiki.Web.Data;
 import cf.thdisstudio.ystwiki.Web.Wiki.WikiDocument;
 import cf.thdisstudio.ystwiki.Web.Wiki.YSTGrammar;
 import com.sun.net.httpserver.Headers;
@@ -11,17 +12,21 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
+
+import static cf.thdisstudio.ystwiki.Web.Util.Web.queryToMap;
 
 public class WikiPageHandler implements HttpHandler {
 
-    String ystWiki = """
+    public static String ystWiki = """
             <!DOCTYPE html>
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
                 <title>%s</title>
-                <link rel="stylesheet" href="UI.css">
+                <link rel="stylesheet" href="/UI.css">
             </head>
                 <body>
                     <div class="top">
@@ -33,7 +38,7 @@ public class WikiPageHandler implements HttpHandler {
                                 Sign in
                             </a>
                         </div>
-                        <a href="/" class="noDeco"><img src="logo.png" width="140px"/> <text style="font-size: 66px; color: black">%s</text></a>
+                        <a href="/" class="noDeco"><img src="/logo.png" width="140px"/> <text style="font-size: 66px; color: black">%s</text></a>
                         <div class="right">
                             <form action="/search" method="GET">
                             <input type="search" name="q" placeholder="검색" autocapitalize="sentences" title="검색" id="searchInput" autocomplete="off">
@@ -120,30 +125,80 @@ public class WikiPageHandler implements HttpHandler {
             .topLine {
                 width: 98%;
             }
+            searchTitle{
+                font-size: 20px;
+                color: blue;
+                font-weight: bold;
+            }
+            searchDescription{
+                font-size: 15px;
+                color: gray;
+            }
+            
+            .editBox {
+                -webkit-box-sizing: border-box;
+                   -moz-box-sizing: border-box;
+                        box-sizing: border-box;
+                        width: 100%;
+                        max-height: 100vh;
+                        min-height: 5em;
+                        white-space: pre-wrap;
+            }
+            
+            .save {
+                color: white;
+                font-size: 15px;
+                font-weight: bold;
+                background-color: #4043ff;
+                width: 50px;
+                height: 30px;
+                border: 1px black solid;
+            }
+            
+            .LinkToWebsite{
+                text-decoration: none;
+            }
+            
+            .LinkToWebsite:hover{
+                text-decoration: blue;
+            }
+            
+            h1{
+                font-size: 1.8em;
+            }
+            
+            h2{
+                font-size: 1.5em;
+            }
+            
+            h3{
+                font-size: 1.2em;
+            }
+            
+            h4{
+                font-size: 0.9em;
+            }
+            
+            h5{
+                font-size: 0.6em;
+            }
+            
+            h1,h2,h3,h4,h5{
+                margin: 0px;
+                margin-left: 1%;
+            }
             """;
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         Main.logger.debug(exchange.getRequestURI().getPath());
-        String st = ystWiki.formatted(Data.title, Data.title, "<docTitle> 대문 </docTitle><hr class=\"topLine\"/>");
-        if(exchange.getRequestURI().getPath().equals("/")) {
-            Headers h = exchange.getResponseHeaders();
-            h.set("Content-Type", "text/html");
-//            String page = readFileFromResource("WikiPage.html");
-            exchange.sendResponseHeaders(200, st.getBytes(StandardCharsets.UTF_8).length);
-            OutputStream os = exchange.getResponseBody();
-            os.write(st.getBytes(StandardCharsets.UTF_8));
-            os.close();
-            Main.logger.debug("Wow");
-        }else if(exchange.getRequestURI().getPath().equals("/UI.css")){
+        if(exchange.getRequestURI().getPath().equals("/UI.css")){
             Headers h = exchange.getResponseHeaders();
             h.set("Content-Type", "text/css");
-//            String css = readFileFromResource("UI.css");
             exchange.sendResponseHeaders(200, css.getBytes(StandardCharsets.UTF_8).length);
             OutputStream os = exchange.getResponseBody();
             os.write(css.getBytes(StandardCharsets.UTF_8));
             os.close();
-            Main.logger.debug("Wow");
         }else if(exchange.getRequestURI().getPath().equals("/logo.png")){
             Headers h = exchange.getResponseHeaders();
             h.set("Content-Type", "image/png");
@@ -153,14 +208,34 @@ public class WikiPageHandler implements HttpHandler {
             try {
                 if(Data.isDocExits(exchange.getRequestURI().getPath())) {
                     WikiDocument wikiDoc = Data.getDocument(exchange.getRequestURI().getPath());
-                    String doc = ystWiki.formatted(wikiDoc.getTitle()+" | "+Data.title, Data.title, "<docTitle>"+wikiDoc.getTitle()+"</docTitle><hr class=\"topLine\"/><wikiContents>"+new YSTGrammar().YSTGrammarToHTML(wikiDoc.getContents())+"</wikiContents>");
+                    String doc = null;
+                    int code = 200;
+                    if(exchange.getRequestURI().getQuery() != null) {
+                        Map<String, String> q = queryToMap(exchange.getRequestURI().getQuery());
+                        if(q.containsKey("edit"))
+                            doc = ystWiki.formatted(wikiDoc.getTitle() + " 수정 | " + Data.title, Data.title, "<docTitle>'" + wikiDoc.getTitle() + "' 수정하기</docTitle><hr class=\"topLine\"/> <form action=\"/edit\" Action=\"GET\">" +
+                                    "<input type=\"hidden\" name=\"pageid\" value=\""+wikiDoc.getPageId()+"\" />" +
+                                    "<textarea id=\"contents\" name=\"contents\" class=\"editBox\" rows=\"25\">" +
+                                            wikiDoc.getContents() +
+                                    "</textarea><br/><br/><br/><input type=\"submit\" value=\"저장\" class=\"save\"></form>");
+                        else
+                            code = 301;
+                    }else {
+                        doc = ystWiki.formatted(wikiDoc.getTitle() + " | " + Data.title, Data.title, "<docTitle>" + wikiDoc.getTitle() + "</docTitle><hr class=\"topLine\"/><wikiContents>" + new YSTGrammar().YSTGrammarToHTML(wikiDoc.getContents()) + "</wikiContents>");
+                    }
                     Headers h = exchange.getResponseHeaders();
-                    h.set("Content-Type", "text/html");
-                    exchange.sendResponseHeaders(200, doc.getBytes(StandardCharsets.UTF_8).length);
-                    OutputStream os = exchange.getResponseBody();
-                    os.write(doc.getBytes(StandardCharsets.UTF_8));
-                    os.close();
-                }
+                    if(code != 301)
+                        h.set("Content-Type", "text/html");
+                    else
+                        h.set("Location", exchange.getRequestURI().getPath());
+                    exchange.sendResponseHeaders(code, (code == 301 ? -1 : doc.getBytes(StandardCharsets.UTF_8).length));
+                    if(code != 301) {
+                        OutputStream os = exchange.getResponseBody();
+                        os.write(doc.getBytes(StandardCharsets.UTF_8));
+                        os.close();
+                    }
+                }else
+                    Main.logger.info("Not Found");
             } catch (SQLException e) {
                 e.printStackTrace();
             }
