@@ -1,6 +1,8 @@
 package cf.thdisstudio.ystwiki.Web;
 
 import cf.thdisstudio.ystwiki.Main.Main;
+import cf.thdisstudio.ystwiki.Web.Wiki.WikiDocument;
+import cf.thdisstudio.ystwiki.Web.Wiki.YSTGrammar;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -8,6 +10,7 @@ import com.sun.net.httpserver.HttpHandler;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.sql.SQLException;
 import java.util.Objects;
 
 public class WikiPageHandler implements HttpHandler {
@@ -30,7 +33,12 @@ public class WikiPageHandler implements HttpHandler {
                                 Sign in
                             </a>
                         </div>
-                        <img src="logo.png" width="140px"/> <text style="font-size: 66px;">%s</text>
+                        <a href="/" class="noDeco"><img src="logo.png" width="140px"/> <text style="font-size: 66px; color: black">%s</text></a>
+                        <div class="right">
+                            <form action="/search" method="GET">
+                            <input type="search" name="q" placeholder="검색" autocapitalize="sentences" title="검색" id="searchInput" autocomplete="off">
+                            </form>
+                        </div>
                     </div>
                     <br/>
                     <nav class="left">
@@ -47,8 +55,8 @@ public class WikiPageHandler implements HttpHandler {
                         <a href="/" class="noDeco">즐겨찾기</a><br/>
                         <a href="/changes" class="noDeco">변경사항 보기</a><br/><br/>
                         <div class="line"></div><br/>
-                        <a href="/upload" class="noDeco">편집</a><br/>
-                        <a href="/특수" class="noDeco">원본 편집</a><br/><br/>
+                        <a href="?edit=visual" class="noDeco">편집</a><br/>
+                        <a href="?edit=text" class="noDeco">원본 편집</a><br/><br/>
                         <div class="line"></div>
                     </nav>
                     <wikibody>
@@ -61,6 +69,7 @@ public class WikiPageHandler implements HttpHandler {
     String css = """
             body{
                 font-family: sans-serif;
+                background-color: #f6f6f6;
             }
                         
             .top{
@@ -93,17 +102,30 @@ public class WikiPageHandler implements HttpHandler {
                 /*display: flex;*/
                 /*align-items: center;*/
                 /*justify-content: center;*/
+                width: calc(100% - 201px);
+                min-height: 40%;
                 border: 1px black solid;
                 height: auto;
                 position: absolute;
                 left: 100px;
+                background-color: white;
+            }
+            wikiContents{
+                margin-left: 1%;
+            }
+            docTitle{
+                font-size: 40px;
+                margin-left: 1%;
+            }
+            .topLine {
+                width: 98%;
             }
             """;
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         Main.logger.debug(exchange.getRequestURI().getPath());
-        String st = ystWiki.formatted(Data.title, Data.title, "대문:대문<hr/>");
+        String st = ystWiki.formatted(Data.title, Data.title, "<docTitle> 대문 </docTitle><hr class=\"topLine\"/>");
         if(exchange.getRequestURI().getPath().equals("/")) {
             Headers h = exchange.getResponseHeaders();
             h.set("Content-Type", "text/html");
@@ -122,12 +144,26 @@ public class WikiPageHandler implements HttpHandler {
             os.write(css.getBytes(StandardCharsets.UTF_8));
             os.close();
             Main.logger.debug("Wow");
-        }
-        else if(exchange.getRequestURI().getPath().equals("/logo.png")){
+        }else if(exchange.getRequestURI().getPath().equals("/logo.png")){
             Headers h = exchange.getResponseHeaders();
             h.set("Content-Type", "image/png");
             exchange.sendResponseHeaders(200, Files.readAllBytes(new File("./webRoot/logo.png").toPath()).length);
             returnFile(exchange, new FileInputStream(new File("./webRoot/logo.png").getAbsolutePath()));
+        }else {
+            try {
+                if(Data.isDocExits(exchange.getRequestURI().getPath())) {
+                    WikiDocument wikiDoc = Data.getDocument(exchange.getRequestURI().getPath());
+                    String doc = ystWiki.formatted(wikiDoc.getTitle()+" | "+Data.title, Data.title, "<docTitle>"+wikiDoc.getTitle()+"</docTitle><hr class=\"topLine\"/><wikiContents>"+new YSTGrammar().YSTGrammarToHTML(wikiDoc.getContents())+"</wikiContents>");
+                    Headers h = exchange.getResponseHeaders();
+                    h.set("Content-Type", "text/html");
+                    exchange.sendResponseHeaders(200, doc.getBytes(StandardCharsets.UTF_8).length);
+                    OutputStream os = exchange.getResponseBody();
+                    os.write(doc.getBytes(StandardCharsets.UTF_8));
+                    os.close();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
