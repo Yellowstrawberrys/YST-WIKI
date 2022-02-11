@@ -3,6 +3,9 @@ package cf.thdisstudio.ystwiki.Web;
 import cf.thdisstudio.ystwiki.Main.Main;
 import cf.thdisstudio.ystwiki.Web.Wiki.WikiDocument;
 
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,8 +82,34 @@ public class Data {
     public static List<WikiDocument> search(String q) throws SQLException {
         ResultSet rt =stmt.executeQuery("SELECT `pageid`, `title`, `path`, `createdTime`, `lastedited`, `permission`, `contents` FROM documents WHERE `title` LIKE '%"+q+"%'");
         List<WikiDocument> wikiDocuments = new ArrayList<>();
+        conn.commit();
         while (rt.next())
             wikiDocuments.add(new WikiDocument(rt.getInt(1), rt.getString(2), rt.getString(3), rt.getString(4), rt.getString(5), rt.getInt(6), rt.getString(7)));
         return wikiDocuments;
+    }
+
+    public static String Login(String id, String password) throws SQLException {
+        ResultSet rt =stmt.executeQuery("SELECT `uid` FROM accounts WHERE `id`='"+id+"' AND `password`='"+toSHA512(password)+"';");
+        conn.commit();
+        if(rt.first())
+            return rt.getString(1);
+        else
+            return null;
+    }
+
+    public static String toSHA512(String pass) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-512");
+            byte[] messageDigest = md.digest(pass.getBytes());
+            BigInteger no = new BigInteger(1, messageDigest);
+            String hashtext = no.toString(16);
+            while (hashtext.length() < 32) {
+                hashtext = "0" + hashtext;
+            }
+            return hashtext;
+        }
+        catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

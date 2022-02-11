@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.List;
 
 public class Core {
@@ -35,12 +36,10 @@ public class Core {
             }
         });
         server.createContext("/", new WikiPageHandler());
-        server.createContext("/upload/file", new FormDataHandler() {
-            @Override
-            public void handle(HttpExchange httpExchange, List<MultiPart> parts) throws IOException {
-
-            }
-        });
+//        server.createContext("/upload/file", new FileUploadHandler());
+        server.createContext("/login", new LoginHandler());
+        server.createContext("/auth/login", new Auth());
+        server.createContext("/upload", new UploadHandler());
         server.createContext("/search", new SearchHandler());
         server.createContext("/create", new CreateHandler());
         server.createContext("/edit", new EditHandler());

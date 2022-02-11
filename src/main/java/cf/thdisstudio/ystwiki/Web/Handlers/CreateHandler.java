@@ -1,6 +1,5 @@
 package cf.thdisstudio.ystwiki.Web.Handlers;
 
-import cf.thdisstudio.ystwiki.Main.Main;
 import cf.thdisstudio.ystwiki.Web.Data;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
