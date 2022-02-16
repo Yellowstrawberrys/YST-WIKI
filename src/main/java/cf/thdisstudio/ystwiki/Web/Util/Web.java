@@ -1,5 +1,8 @@
 package cf.thdisstudio.ystwiki.Web.Util;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,5 +21,10 @@ public class Web {
             }
         }
         return result;
+    }
+
+    public static void sendResponse(OutputStream opt, String content) throws IOException {
+        opt.write(content.getBytes(StandardCharsets.UTF_8));
+        opt.close();
     }
 }

@@ -1,6 +1,8 @@
 package cf.thdisstudio.ystwiki.Web;
 
 import cf.thdisstudio.ystwiki.Main.Main;
+import cf.thdisstudio.ystwiki.Web.Wiki.Action;
+import cf.thdisstudio.ystwiki.Web.Wiki.History;
 import cf.thdisstudio.ystwiki.Web.Wiki.WikiDocument;
 
 import java.math.BigInteger;
@@ -67,16 +69,18 @@ public class Data {
         return new WikiDocument(rt.getInt(1), rt.getString(2), rt.getString(3), rt.getString(4), rt.getString(5), rt.getInt(6), rt.getString(7));
     }
 
-    public static void editDocument(int pageId, String contents) throws SQLException {
+    public static void editDocument(int pageId, String contents, String user) throws SQLException {
         stmt.executeQuery("UPDATE `ystwiki`.`documents` SET `contents`='"+contents+"', `lastedited`='"+System.currentTimeMillis()+"' WHERE pageid="+pageId+"");
         conn.commit();
+        addLog(1, String.valueOf(pageId), getDocumentByPageID(pageId).getPath(), user+"/::/Edit/::/1");
     }
 
-    public static void makeDocument(String title, String contents) throws SQLException {
+    public static void makeDocument(String title, String contents, String user) throws SQLException {
         ResultSet rt = stmt.executeQuery("SELECT `pageid` FROM documents ORDER BY pageid DESC LIMIT 1;");
         rt.first();
         stmt.executeQuery("INSERT INTO `ystwiki`.`documents` (`pageid`, `title`, `path`, `createdTime`, `lastedited`, `permission`, `contents`) VALUES ('"+(rt.getInt(1)+1)+"', '"+title+"', '/"+title+"', '"+System.currentTimeMillis()+"', '"+System.currentTimeMillis()+"', '0', '"+contents+"');");
         conn.commit();
+        addLog(1, String.valueOf((rt.getInt(1)+1)), (title.equals("대문") ? "/" : "/"+title), user+"/::/Create/::/1");
     }
 
     public static List<WikiDocument> search(String q) throws SQLException {
@@ -88,13 +92,40 @@ public class Data {
         return wikiDocuments;
     }
 
-    public static String Login(String id, String password) throws SQLException {
-        ResultSet rt =stmt.executeQuery("SELECT `uid` FROM accounts WHERE `id`='"+id+"' AND `password`='"+toSHA512(password)+"';");
+    public static String[] Login(String id, String password) throws SQLException {
+        ResultSet rt =stmt.executeQuery("SELECT `uid`, `id` FROM accounts WHERE `id`='"+id+"' AND `password`='"+toSHA512(password)+"';");
         conn.commit();
         if(rt.first())
-            return rt.getString(1);
+            return new String[]{rt.getString(1), rt.getString(2)};
         else
             return null;
+    }
+
+    public static void addLog(int type, String... values) throws SQLException {
+        ResultSet rt = stmt.executeQuery("SELECT `logID` FROM logs ORDER BY logID DESC LIMIT 1;");
+        boolean is = rt.first();
+        stmt.executeQuery("INSERT INTO `ystwiki`.`logs` (`logID`, `type`, `docID`, `doc`, `value`, `time`) VALUES ("+(is ? rt.getInt(1)+1 : 1)+", "+type+", "+values[0]+", '"+values[1]+"','"+values[2]+"','"+System.currentTimeMillis()+"');");
+        conn.commit();
+    }
+
+    public static List<History> getHistory(String path) throws SQLException {
+        List<History> result = new ArrayList<>();
+        ResultSet rt = stmt.executeQuery("SELECT `value`, `time` FROM logs WHERE `doc`='"+path+"'");
+        conn.commit();
+        while (rt.next()) {
+            String[] values = logValues(rt.getString(1));
+            History history = new History();
+            history.userName = values[0];
+            history.action = Action.valueOf(values[1]);
+            history.count = Integer.parseInt(values[2]);
+            history.date = rt.getString(2);
+            result.add(history);
+        }
+        return result;
+    }
+
+    private static String[] logValues(String st){
+        return st.split("/::/");
     }
 
     public static String toSHA512(String pass) {

@@ -8,12 +8,14 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
+import static cf.thdisstudio.ystwiki.Web.Handlers.WikiPageHandler.login;
+
 public class LoginHandler implements HttpHandler {
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         String finalResult = WikiPageHandler.ystWiki.replaceAll("\n", "")
                 .replaceFirst("<nav class=\"right\">            <div class=\"line\"></div><br/>            <a href=\"/\" class=\"noDeco\">즐겨찾기</a><br/>            <a href=\"/changes\" class=\"noDeco\">변경사항 보기</a><br/><br/>            <div class=\"line\"></div><br/>            <a href=\"\\?edit=visual\" class=\"noDeco\">편집</a><br/>            <a href=\"\\?edit=text\" class=\"noDeco\">원본 편집</a><br/><br/>            <div class=\"line\"></div>        </nav>", "")
-                .formatted(Data.title, Data.title, "<docTitle> 로그인 </docTitle><hr class=\"topLine\"/>" +
+                .formatted(Data.title, login(exchange), Data.title, "<docTitle> 로그인 </docTitle><hr class=\"topLine\"/>" +
                         "<form action=\"/auth/login\" method=\"POST\">" +
                         "<label>ID를 입력하시오</label><br>" +
                         "<input type=\"text\" name=\"id\"/>" +

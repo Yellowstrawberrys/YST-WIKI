@@ -2,7 +2,7 @@ plugins {
     id 'java'
 }
 
-group 'org.example'
+group 'cf.thdisstudio'
 version '1.0-SNAPSHOT'
 
 tasks.withType(JavaCompile) {

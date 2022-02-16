@@ -36,8 +36,8 @@ public class YSTGrammar {
             }
         }
         List<List<String>> strings = Arrays.asList(Arrays.asList("\\*\\*(.*?)\\*\\*", "\\*\\*", "\\*\\*", "<strong>", "</strong>"),
-                Arrays.asList("\\_(.*?)\\_", "\\_", "\\_", "<em>", "</em>"),
                 Arrays.asList("\\_\\_(.*?)\\_\\_", "\\_\\_", "\\_\\_", "<u>", "</u>"),
+                Arrays.asList("\\_(.*?)\\_", "\\_", "\\_", "<em>", "</em>"),
                 Arrays.asList("===== (.*?) =====", "===== ", " =====", "<h5>", "</h5><hr class=\"topLine\"/>"),
                 Arrays.asList("==== (.*?) ====", "==== ", " ====", "<h4>", "</h4><hr class=\"topLine\"/>"),
                 Arrays.asList("=== (.*?) ===", "=== ", " ===", "<h3>", "</h3><hr class=\"topLine\"/>"),
@@ -47,7 +47,6 @@ public class YSTGrammar {
             Matcher ma = Pattern.compile(sts.get(0)).matcher(finalContents);
             while (ma.find()) {
                 String st = ma.group(1);
-                Main.logger.debug(st);
                 finalContents = finalContents.replaceAll(sts.get(1) + st + sts.get(2), sts.get(3) + st + sts.get(4));
             }
         }

@@ -10,8 +10,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
-import java.util.Arrays;
-import java.util.List;
+import java.util.concurrent.Executors;
 
 public class Core {
 
@@ -19,8 +18,8 @@ public class Core {
 
     public void init(String path, int port) throws IOException {
         Main.logger.info("Starting Web Core Init");
-        server = HttpServer.create(new InetSocketAddress(port), 0);
-        server.setExecutor(null);
+        server = HttpServer.create(new InetSocketAddress(port), 1);
+        server.setExecutor(Executors.newCachedThreadPool());
         server.createContext("/favicon.ico", exchange -> {
             File file = null;
             file = new File(new File("./icon/favicon.ico").toURI());
@@ -36,6 +35,7 @@ public class Core {
             }
         });
         server.createContext("/", new WikiPageHandler());
+        server.createContext("/history", new HistoryHandler());
 //        server.createContext("/upload/file", new FileUploadHandler());
         server.createContext("/login", new LoginHandler());
         server.createContext("/auth/login", new Auth());

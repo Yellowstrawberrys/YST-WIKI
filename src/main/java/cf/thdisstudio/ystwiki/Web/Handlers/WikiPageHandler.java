@@ -2,6 +2,8 @@ package cf.thdisstudio.ystwiki.Web.Handlers;
 
 import cf.thdisstudio.ystwiki.Main.Main;
 import cf.thdisstudio.ystwiki.Web.Data;
+import cf.thdisstudio.ystwiki.Web.Sessions.Session;
+import cf.thdisstudio.ystwiki.Web.Sessions.SessionManager;
 import cf.thdisstudio.ystwiki.Web.Wiki.WikiDocument;
 import cf.thdisstudio.ystwiki.Web.Wiki.YSTGrammar;
 import com.sun.net.httpserver.Headers;
@@ -12,13 +14,40 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
-import static cf.thdisstudio.ystwiki.Web.Util.Web.queryToMap;
+import static cf.thdisstudio.ystwiki.Web.Util.Web.*;
 
 public class WikiPageHandler implements HttpHandler {
+
+    static String s = """
+            <a class="noDeco" href="/login">
+                                Login
+                            </a>
+                            <a class="noDeco" href="/register">
+                                Sign in
+                            </a>""";
+
+    public static String login(HttpExchange httpExchange){
+        List<String> cookies;
+        httpExchange.getResponseHeaders().add("Cache-Control", "no-cache, no-store, must-revalidate");
+        if((cookies = httpExchange.getRequestHeaders().get("Cookie")) != null) {
+            for(String cookie : cookies) {
+                String sessionID;
+                if (cookie.contains("session-id") && !(sessionID = cookie.replaceFirst("session-id=", "")).equals("deleted")) {
+                    Session session;
+                    if ((session = SessionManager.getSessionBySessionID(sessionID)) != null) {
+                        return "<img src=\"/user.png\" width=\"20px\" style=\"border-radius: 50%\"/> <a class=\"noDeco\" href=\"/USER:" + session.userName + "\">" + session.userName + "님</a>";
+                    } else {
+                        httpExchange.getResponseHeaders().add("Set-Cookie", "session-id=deleted; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT");
+                        return s;
+                    }
+                }else
+                    return s;
+            }
+        }
+        return s;
+    }
 
     public static String ystWiki = """
             <!DOCTYPE html>
@@ -27,16 +56,13 @@ public class WikiPageHandler implements HttpHandler {
                 <meta charset="UTF-8">
                 <title>%s</title>
                 <link rel="stylesheet" href="/UI.css">
+                <link rel="icon" type="image/png" href="/logo.png" />
             </head>
                 <body>
+                    <script>0</script>
                     <div class="top">
                         <div class="right">
-                            <a class="noDeco" href="/login">
-                                Login
-                            </a>
-                            <a class="noDeco" href="/register">
-                                Sign in
-                            </a>
+                            %s
                         </div>
                         <a href="/" class="noDeco"><img src="/logo.png" width="140px"/> <text style="font-size: 66px; color: black">%s</text></a>
                         <div class="right">
@@ -58,7 +84,7 @@ public class WikiPageHandler implements HttpHandler {
                     <nav class="right">
                         <div class="line"></div><br/>
                         <a href="/" class="noDeco">즐겨찾기</a><br/>
-                        <a href="/changes" class="noDeco">변경사항 보기</a><br/><br/>
+                        <a href="/history/" class="noDeco">변경사항 보기</a><br/><br/>
                         <div class="line"></div><br/>
                         <a href="?edit=visual" class="noDeco">편집</a><br/>
                         <a href="?edit=text" class="noDeco">원본 편집</a><br/><br/>
@@ -191,51 +217,57 @@ public class WikiPageHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
+        exchange.getResponseHeaders().add("Age", "0");
+        exchange.getResponseHeaders().add("Clear-Site-Data", "\"storage\"");
+        exchange.getResponseHeaders().add("Expires", "Thu, 01 Jan 1970 00:00:00 GMT");
+        exchange.getResponseHeaders().add("Server", "YstWiki/Alpha1.0");
+        exchange.getResponseHeaders().set("X-Powered-By", "YST WIKI Engine");
         Main.logger.debug(exchange.getRequestURI().getPath());
         if(exchange.getRequestURI().getPath().equals("/UI.css")){
             Headers h = exchange.getResponseHeaders();
-            h.set("Content-Type", "text/css");
+            h.add("Content-Type", "text/css");
             exchange.sendResponseHeaders(200, css.getBytes(StandardCharsets.UTF_8).length);
             OutputStream os = exchange.getResponseBody();
             os.write(css.getBytes(StandardCharsets.UTF_8));
             os.close();
         }else if(exchange.getRequestURI().getPath().equals("/logo.png")){
             Headers h = exchange.getResponseHeaders();
-            h.set("Content-Type", "image/png");
+            h.add("Content-Type", "image/png");
             exchange.sendResponseHeaders(200, Files.readAllBytes(new File("./webRoot/logo.png").toPath()).length);
             returnFile(exchange, new FileInputStream(new File("./webRoot/logo.png").getAbsolutePath()));
+        }else if(exchange.getRequestURI().getPath().equals("/user.png")){
+            Headers h = exchange.getResponseHeaders();
+            h.add("Content-Type", "image/png");
+            exchange.sendResponseHeaders(200, Files.readAllBytes(new File("./webRoot/user.png").toPath()).length);
+            returnFile(exchange, new FileInputStream(new File("./webRoot/user.png").getAbsolutePath()));
         }else {
             try {
                 if(Data.isDocExits(exchange.getRequestURI().getPath())) {
                     WikiDocument wikiDoc = Data.getDocument(exchange.getRequestURI().getPath());
                     String doc = null;
-                    int code = 200;
                     if(exchange.getRequestURI().getQuery() != null) {
                         Map<String, String> q = queryToMap(exchange.getRequestURI().getQuery());
                         if(q.containsKey("edit"))
-                            doc = ystWiki.formatted(wikiDoc.getTitle() + " 수정 | " + Data.title, Data.title, "<docTitle>'" + wikiDoc.getTitle() + "' 수정하기</docTitle><hr class=\"topLine\"/> <form action=\"/edit\" Action=\"GET\">" +
+                            doc = ystWiki.formatted(wikiDoc.getTitle() + " 수정 | " + Data.title, login(exchange), Data.title, "<docTitle>'" + wikiDoc.getTitle() + "' 수정하기</docTitle><hr class=\"topLine\"/> <form action=\"/edit\" Action=\"GET\">" +
                                     "<input type=\"hidden\" name=\"pageid\" value=\""+wikiDoc.getPageId()+"\" />" +
                                     "<textarea id=\"contents\" name=\"contents\" class=\"editBox\" rows=\"25\">" +
                                             wikiDoc.getContents() +
                                     "</textarea><br/><br/><br/><input type=\"submit\" value=\"저장\" class=\"save\"></form>");
-                        else
-                            code = 301;
-                    }else {
-                        doc = ystWiki.formatted(wikiDoc.getTitle() + " | " + Data.title, Data.title, "<docTitle>" + wikiDoc.getTitle() + "</docTitle><hr class=\"topLine\"/><wikiContents>" + new YSTGrammar().YSTGrammarToHTML(wikiDoc.getContents()) + "</wikiContents>");
-                    }
+                        else{
+                            exchange.sendResponseHeaders(301, -1);
+                            exchange.getResponseHeaders().add("Location", exchange.getRequestURI().getPath());
+                            return;
+                        }
+                    }else if(exchange.getRequestURI().getQuery() == null || exchange.getRequestURI().getQuery() != null && !exchange.getRequestURI().getQuery().startsWith("edit"))
+                        doc = ystWiki.formatted(wikiDoc.getTitle() + " | " + Data.title, login(exchange), Data.title, "<docTitle>" + wikiDoc.getTitle() + "</docTitle><hr class=\"topLine\"/><wikiContents>" + new YSTGrammar().YSTGrammarToHTML(wikiDoc.getContents()) + "</wikiContents>");
                     Headers h = exchange.getResponseHeaders();
-                    if(code != 301)
-                        h.set("Content-Type", "text/html");
-                    else
-                        h.set("Location", exchange.getRequestURI().getPath());
-                    exchange.sendResponseHeaders(code, (code == 301 ? -1 : doc.getBytes(StandardCharsets.UTF_8).length));
-                    if(code != 301) {
-                        OutputStream os = exchange.getResponseBody();
-                        os.write(doc.getBytes(StandardCharsets.UTF_8));
-                        os.close();
-                    }
-                }else
+                    h.add("Content-Type", "text/html");
+                    exchange.sendResponseHeaders(200, doc.getBytes(StandardCharsets.UTF_8).length);
+                    sendResponse(exchange.getResponseBody(), doc);
+                }else {
+                    exchange.sendResponseHeaders(404, -1);
                     Main.logger.info("Not Found");
+                }
             } catch (SQLException e) {
                 e.printStackTrace();
             }
